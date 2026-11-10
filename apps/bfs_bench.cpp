@@ -348,10 +348,20 @@ int main(int argc, char **argv) {
 
     const cxltest::BfsConfig config{kernel, opts.source, graph.symmetric};
 
-    // The CXL run's CPU time is dominated by TCP work, so measure the compute
-    // term on DRAM (ADR 0002).
+    // Measure the compute term on DRAM as a warm median of three runs (ADR
+    // 0002). The same term is used for the DRAM and CXL rows so cold-start
+    // effects do not make the DRAM baseline look slower than it is.
     std::uint64_t compute_reference_ns = 0;
-    if (backend != cxltest::Backend::Dram) {
+    if (backend == cxltest::Backend::Dram) {
+        std::uint64_t samples[3] = {0, 0, 0};
+        for (int i = 0; i < 3; ++i) {
+            reset_arrays(arrays);
+            const std::uint64_t start = cpu_ns();
+            cxltest::bfs_run(*arrays.row_ptr, *arrays.col_idx, graph.num_vertices, config);
+            samples[i] = cpu_ns() - start;
+        }
+        compute_reference_ns = median3(samples[0], samples[1], samples[2]);
+    } else {
         GraphArrays reference = build_arrays(graph, cxltest::Backend::Dram, 0, nullptr, block_bytes, cache_bytes);
         std::uint64_t samples[3] = {0, 0, 0};
         for (int i = 0; i < 3; ++i) {
@@ -384,10 +394,11 @@ int main(int argc, char **argv) {
         const cxltest::MemoryStats stats = combined_stats(arrays);
 
         const std::uint64_t t_cpu_run = cpu_end - cpu_start;
-        const std::uint64_t t_compute = backend == cxltest::Backend::Dram ? t_cpu_run : compute_reference_ns;
+        const std::uint64_t t_compute = compute_reference_ns;
         const std::uint64_t t_cxl = stats.modeled_ns;
         const std::uint64_t t_model = t_compute + t_cxl;
-        const std::uint64_t t_transport = t_cpu_run > t_compute ? t_cpu_run - t_compute : 0;
+        const std::uint64_t t_transport =
+            backend == cxltest::Backend::Dram ? 0 : (t_cpu_run > t_compute ? t_cpu_run - t_compute : 0);
         const std::uint64_t t_wall = wall_end - wall_start;
 
         if (opts.verify) {

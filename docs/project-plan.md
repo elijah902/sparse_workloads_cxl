@@ -257,7 +257,7 @@ the code.
 | **M0** | Build `cxlmemsim_server`; implement `CXLClient`; write/read one line | **Done 2026-11-09.** Data round-trips; 210 ns modeled latency; 0 errors |
 | **M1** | Repo skeleton, `TieredArray`, software cache, dataset utilities, 2D stencil | **Done 2026-11-09.** Stencil runs in DRAM/direct/block; exact line/cache counts match; M1 table recorded |
 | **M2** | BFS top-down, bottom-up, hybrid; `bfs.md`; sweeps | **Done 2026-11-09.** Correct on all test graphs; M2 table recorded; hybrid cuts CXL lines 3.1× vs top-down |
-| **M3** | SpMV CSR, SELL-C-σ, BCSR; `spmv.md`; sweeps | Correct on all matrices; GFLOP/s and CXL-byte plots |
+| **M3** | SpMV CSR, SELL-C-σ, BCSR; `spmv.md`; sweeps | **Done 2026-11-09.** Correct on all matrices; CSR is best format (SELL/BCSR lose to padding); M3 table recorded |
 | **M4** | k-NN stretch | Correct top-k; tiled vs brute-force comparison |
 | **M5** | Cross-algorithm analysis, survey, final report, reproduction | Report and repo reproduce every figure |
 
@@ -282,6 +282,7 @@ The repository provides (and will extend):
 - `scripts/build.sh` — build this project and its tests.
 - `scripts/run_stencil_calibration.sh` — regenerate the M1 calibration CSV.
 - `scripts/run_bfs_calibration.sh` — regenerate the M2 BFS calibration CSV.
+- `scripts/run_spmv_calibration.sh` — regenerate the M3 SpMV calibration CSV.
 - `scripts/run_experiments.sh` — (planned) run the full matrix and write CSV.
 - `scripts/plot_results.py` — (planned) regenerate figures from CSV.
 - `results/raw/` — raw CSV output (git-ignored; regenerate with the scripts).
@@ -299,6 +300,7 @@ server options. The M1 calibration is reproducible with:
 ctest --test-dir build --output-on-failure
 ./scripts/run_stencil_calibration.sh
 ./scripts/run_bfs_calibration.sh
+./scripts/run_spmv_calibration.sh
 ```
 
 ## 12. Progress log
@@ -330,6 +332,14 @@ ctest --test-dir build --output-on-failure
   over-fetches 3–6× the lines on the irregular graph; CXL BFS is only ~3× DRAM,
   versus 30× for the streaming stencil, because CSR access has enough spatial
   locality for a modest cache to capture.
+- **2026-11-09 — M3 complete.** Implemented SpMV (CSR, SELL-C-σ, BCSR) with
+  deterministic Laplacian/RMAT/random matrix generators, format conversions,
+  host references, and three kernels over `TieredArray`. Added `spmv_test` and
+  `spmv_bench`. All five CTest cases pass; M3 table recorded in
+  `results/raw/m3_spmv.csv`. Key results: CSR is the best format tested — SELL
+  loses on padding/layout trade-offs (24,100 vs 12,545 line fetches on RMAT) and
+  BCSR over-pads badly at small block sizes (18.2 ms `t_model` at 4x4 on RMAT);
+  CXL SpMV on RMAT is ~6.7× DRAM with a ~91% software-cache hit rate.
 
 ## 13. References
 

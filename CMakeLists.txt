@@ -24,6 +24,7 @@ target_link_libraries(cxl_memory PUBLIC cxl_client)
 
 add_library(cxl_workloads STATIC
     src/workloads/bfs.cpp
+    src/workloads/spmv.cpp
     src/workloads/stencil.cpp
 )
 target_include_directories(cxl_workloads PUBLIC src)
@@ -41,11 +42,17 @@ target_link_libraries(stencil_test PRIVATE cxl_workloads)
 add_executable(bfs_test tests/bfs_test.cpp)
 target_link_libraries(bfs_test PRIVATE cxl_workloads)
 
+add_executable(spmv_test tests/spmv_test.cpp)
+target_link_libraries(spmv_test PRIVATE cxl_workloads)
+
 add_executable(stencil_bench apps/stencil_bench.cpp)
 target_link_libraries(stencil_bench PRIVATE cxl_workloads)
 
 add_executable(bfs_bench apps/bfs_bench.cpp)
 target_link_libraries(bfs_bench PRIVATE cxl_workloads)
+
+add_executable(spmv_bench apps/spmv_bench.cpp)
+target_link_libraries(spmv_bench PRIVATE cxl_workloads)
 
 enable_testing()
 add_test(NAME cxl_client_smoke COMMAND cxl_client_smoke)
@@ -59,3 +66,6 @@ set_tests_properties(stencil_test PROPERTIES SKIP_RETURN_CODE 77)
 
 add_test(NAME bfs_test COMMAND bfs_test)
 set_tests_properties(bfs_test PROPERTIES SKIP_RETURN_CODE 77)
+
+add_test(NAME spmv_test COMMAND spmv_test)
+set_tests_properties(spmv_test PROPERTIES SKIP_RETURN_CODE 77)

@@ -248,12 +248,22 @@ int main(int argc, char **argv) {
     const std::vector<float> input = make_input(opts.n);
     const std::vector<float> zeros(plane_elems, 0.0f);
 
-    // The synchronous TCP client spends real CPU time in the network stack, so
-    // the CXL run's CPU time is not the algorithm's compute time. Measure the
-    // same kernel on DRAM instead and use that as t_compute. The CXL run's own
-    // CPU time is reported separately as t_cpu_run.
+    // Measure the compute term on DRAM as a warm median of three runs (ADR
+    // 0002). The same term is used for the DRAM and CXL rows so first-touch
+    // page faults do not make the DRAM baseline look slower than it is.
     std::uint64_t compute_reference_ns = 0;
-    if (backend != cxltest::Backend::Dram) {
+    if (backend == cxltest::Backend::Dram) {
+        std::uint64_t samples[3] = {0, 0, 0};
+        for (int i = 0; i < 3; ++i) {
+            grid.load(0, input.data(), plane_bytes);
+            grid.load(plane_bytes, zeros.data(), plane_bytes);
+            grid.reset_stats();
+            const std::uint64_t start = cpu_ns();
+            cxltest::stencil_run(grid, {opts.n, opts.steps, kernel});
+            samples[i] = cpu_ns() - start;
+        }
+        compute_reference_ns = median3(samples[0], samples[1], samples[2]);
+    } else {
         cxltest::TieredArrayConfig reference_config;
         reference_config.backend = cxltest::Backend::Dram;
         reference_config.size_bytes = 2 * plane_bytes;
@@ -294,11 +304,11 @@ int main(int argc, char **argv) {
         const cxltest::MemoryStats stats = grid.stats();
 
         const std::uint64_t t_cpu_run = cpu_end - cpu_start;
-        const std::uint64_t t_compute =
-            backend == cxltest::Backend::Dram ? t_cpu_run : compute_reference_ns;
+        const std::uint64_t t_compute = compute_reference_ns;
         const std::uint64_t t_cxl = stats.modeled_ns;
         const std::uint64_t t_model = t_compute + t_cxl;
-        const std::uint64_t t_transport = t_cpu_run > t_compute ? t_cpu_run - t_compute : 0;
+        const std::uint64_t t_transport =
+            backend == cxltest::Backend::Dram ? 0 : (t_cpu_run > t_compute ? t_cpu_run - t_compute : 0);
         const std::uint64_t t_wall = wall_end - wall_start;
 
         if (opts.verify) {

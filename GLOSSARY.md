@@ -61,11 +61,12 @@ document where useful.
 - **CSR (Compressed Sparse Row):** `row_ptr[n+1]`, `col_idx[nnz]`, optional
   `values[nnz]`.
 - **SpMV:** Sparse matrix–vector multiplication, `y = A x`.
-- **SELL-C-σ:** Sliced ELLPACK with a sorting/blocking parameter. Stores rows in
-  fixed-size tiles for regular access.
+- **SELL-C-σ:** Sliced ELLPACK with a sorting window (`sigma`) and slice height.
+  Sorts rows by length to reduce fill; stored in column-major layout within slices.
 - **BCSR:** Blocked CSR. Stores small dense blocks instead of individual
-  nonzeros.
-- **k-NN:** k-nearest-neighbor search over a dense vector dataset.
+  nonzeros; padding is inherent and may over-store for sparse matrices.
+- **k-NN:** k-nearest-neighbor search over a dense vector dataset. Stretch goal;
+  to be implemented in M4.
 - **Stencil:** A regular grid update over a fixed neighborhood. Used here as a
   calibration workload.
 

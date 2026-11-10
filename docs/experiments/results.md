@@ -1,10 +1,11 @@
 # Results
 
-Status: M1 stencil and M2 BFS calibration recorded
+Status: M1/M2/M3 calibration recorded
 Last updated: 2026-11-09
 
-Raw data: `results/raw/m1_stencil.csv` and `results/raw/m2_bfs.csv` (regenerate
-with `scripts/run_stencil_calibration.sh` and `scripts/run_bfs_calibration.sh`).
+Raw data: `results/raw/m1_stencil.csv`, `results/raw/m2_bfs.csv`, and
+`results/raw/m3_spmv.csv` (regenerate with `scripts/run_stencil_calibration.sh`,
+`scripts/run_bfs_calibration.sh`, and `scripts/run_spmv_calibration.sh`).
 
 ## M1 — Stencil calibration
 
@@ -135,7 +136,69 @@ every line.
 shapes against the reference, exact top-down and bottom-up counters, the
 `col_idx_reads == edges_examined` invariant, and the CXL direct/block backends.
 
+## M3 — SpMV
+
+Raw data: `results/raw/m3_spmv.csv` (regenerate with
+`scripts/run_spmv_calibration.sh`). Platform and server settings are the same as
+M2: 200 ns base latency, TCP, file-backed pool. Full walkthrough:
+[docs/algorithms/spmv.md](../algorithms/spmv.md).
+
+### Laplacian (5-point grid, side = 64, 4096 x 4096, nnz = 20,224)
+
+| Backend | Format | Block | `t_model` ms | Line fetches | Hits | Misses |
+|---|---|---|---|---|---|---|
+| dram | csr | — | 0.194 | 0 | 0 | 0 |
+| cxl-direct | csr | — | 1.139 | 4,049 | 44,591 | 4,049 |
+| cxl-block | csr | 4 KB | 1.042 | 4,049 | 48,575 | 65 |
+
+Block mode cuts modeled latency by 7% (1.042 vs 1.139 ms) by coalescing reads;
+the hit-rate difference is small (98.7% vs 91.8%) because the whole matrix fits in
+the 64 KB cache.
+
+### RMAT (`n = 4096`, `nnz = 65,536`, seed 7), CXL direct, 64 KB cache
+
+| Backend | Format | Block | `t_cxl_model` ms | `t_model` ms | Line fetches | Hits | Misses |
+|---|---|---|---|---|---|---|---|
+| dram | csr | — | 0.000 | 0.463 | 0 | 0 | 0 |
+| cxl-direct | csr | — | 2.634 | **3.103** | 12,545 | 126,719 | 12,545 |
+| cxl-direct | sell | slice 4 / sigma 8 | 5.061 | **6.132** | 24,100 | 234,308 | 24,100 |
+| cxl-direct | bcsr | 2x2 | 5.412 | **6.519** | 25,770 | 206,241 | 25,770 |
+| cxl-direct | bcsr | 4x4 | 15.362 | **18.199** | 73,152 | 531,308 | 73,152 |
+
+### Random sparse (`rows = cols = 8000`, `nnz = 64,000), CXL direct, 64 KB cache
+
+| Backend | Format | Block | `t_cxl_model` ms | `t_model` ms | Line fetches | Hits | Misses |
+|---|---|---|---|---|---|---|---|
+| cxl-direct | csr | — | 2.625 | **3.242** | 12,501 | 131,499 | 12,501 |
+| cxl-direct | sell | slice 4 / sigma 8 | 3.137 | **3.888** | 14,936 | 147,024 | 14,936 |
+| cxl-direct | bcsr | 4x4 | 27.512 | **32.416** | 131,011 | 951,792 | 131,011 |
+
+### Observations
+
+1. **CSR is the best format so far in all SpMV sweeps.** SELL and BCSR never beat
+   CSR in `t_model` or line fetches on RMAT or random matrices; they only tied on
+   the very small, perfectly regular Laplacian.
+2. **SELL's column-major layout costs.** With `slice_height = 4`, consecutive `k`
+   for a lane sit 16 bytes apart, destroying CXL cache-line reuse; line fetches
+   double versus CSR (24,100 vs 12,545 on RMAT) and padding adds traffic
+   (128,180 stored for 65,536 logical entries).
+3. **BCSR padding dominates at small blocks.** 2x2 blocks already hurt RMAT
+   (`t_model` 6.52 ms vs 3.10 ms for CSR); 4x4 blocks hurt badly
+   (`t_model` 18.2 ms, 73,152 line fetches, 4.7 MB read).
+4. **CXL SpMV on RMAT is ~6.7x DRAM** (CSR `t_model` 3.10 ms vs 0.46 ms). Best CXL
+   penalty observed across the calibration workloads so far, behind the 30x
+   streaming stencil and the ~3x irregular BFS.
+5. **Software cache captures most reuse:** 91% hits on RMAT CSR (12,545 misses of
+   139,344 lookups), 90.8% on the random matrix.
+6. **Transport dominates wall time.** `t_cpu_run` is 77–2,241 ms and `t_wall` is
+   336–11,616 ms versus 0.2–18.2 ms of modeled CXL time.
+
 ## Next
 
-M3 adds SpMV (CSR, SELL-C-σ, BCSR) with the matrix arrays in CXL. Results will
-be appended here.
+M4 adds the final algorithm (k-NN stretch), real-graph experiments, and the survey
+report. Results will be appended here.
+
+## Next
+
+M4 adds the final algorithm (k-NN stretch), real-graph experiments, and the survey
+report. Results will be appended here.

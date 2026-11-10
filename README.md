@@ -15,17 +15,21 @@ stencil**.
 
 ## Status
 
-**M2 complete.** M0 built the CXLMemSim server and validated the TCP client. M1
+**M3 complete.** M0 built the CXLMemSim server and validated the TCP client. M1
 added the `TieredArray` memory abstraction (DRAM, CXL direct, CXL block), an
 LRU/direct-mapped software cache, `MemoryStats` counters, and the calibration 2D
-stencil. M2 adds CSR graph builders (grid, RMAT, random) and BFS with top-down,
-bottom-up, and direction-optimizing hybrid kernels. All four CTest cases pass and
-the M1/M2 calibration data is recorded. Next: SpMV (M3).
+stencil. M2 added CSR graph builders and BFS with top-down, bottom-up, and
+direction-optimizing hybrid kernels. M3 added CSR, SELL-C-σ, and BCSR formats with
+SpMV kernels. All five CTest cases pass and the M1/M2/M3 calibration data is
+recorded.
 
 See [docs/experiments/results.md](docs/experiments/results.md) for the numbers,
 [docs/algorithms/bfs.md](docs/algorithms/bfs.md) for the BFS walkthrough, and
+[docs/algorithms/spmv.md](docs/algorithms/spmv.md) for the SpMV walkthrough, and
 [docs/experiments/platform.md](docs/experiments/platform.md) for platform
 details.
+
+Next: the k-NN stretch (M4).
 
 ## Platform
 
@@ -66,6 +70,8 @@ ctest --test-dir build --output-on-failure
 ./build/stencil_bench --backend dram --kernel row --n 256 --steps 4 --verify
 ./build/bfs_bench --backend dram --graph rmat --n 4096 --edges 32768 \
     --seed 7 --source 2048 --kernel hybrid --verify
+./build/spmv_bench --backend dram --matrix rmat --n 4096 --nnz 65536 \
+    --seed 7 --format csr --verify
 ```
 
 Expected smoke-test output:
@@ -115,11 +121,30 @@ row. They share the backend, cache, transport, and timing options.
 | `--source <vertex>` | BFS source |
 | `--directed` | Directed graph (top-down only) |
 
+`spmv_bench` (core algorithm):
+
+| Option | Meaning |
+|---|---|
+| `--matrix laplacian\|rmat\|random` | Matrix generator |
+| `--format csr\|sell\|bcsr` | Sparse format |
+| `--n <size>` | Grid side or row count (default 4096) |
+| `--cols <count>` | Random-matrix columns (default `n`) |
+| `--nnz <count>` | RMAT/random nonzeros (default `8*n`) |
+| `--seed <value>` | Matrix seed (default 12345) |
+| `--slice-height <rows>` | SELL slice height (default 4) |
+| `--sigma <rows>` | SELL sorting window (default 8) |
+| `--block-rows <rows>` | BCSR block rows (default 2) |
+| `--block-cols <cols>` | BCSR block cols (default 2) |
+| `--block-kb <size>` | Block fetch size, default 64 |
+| `--cache-kb <size>` | Software cache size, default 64 |
+| `--repeat <count>` | Number of measured runs |
+
 Regenerate the calibration tables with:
 
 ```bash
 ./scripts/run_stencil_calibration.sh   # results/raw/m1_stencil.csv
 ./scripts/run_bfs_calibration.sh       # results/raw/m2_bfs.csv
+./scripts/run_spmv_calibration.sh     # results/raw/m3_spmv.csv
 ```
 
 ## Server options
@@ -139,7 +164,7 @@ Regenerate the calibration tables with:
 ```text
 src/cxl/          TCP client and wire protocol
 src/memory/       TieredArray backends, software cache, memory counters
-src/workloads/    Algorithm kernels (stencil, BFS; SpMV next)
+src/workloads/    Algorithm kernels (stencil, BFS, SpMV; k-NN next)
 apps/             Benchmark drivers
 tests/            Transport, memory, and kernel tests
 scripts/          Build, run, and calibration scripts

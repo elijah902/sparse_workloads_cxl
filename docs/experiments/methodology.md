@@ -53,7 +53,9 @@ amount of network-stack work. ADR 0002 defines the separation:
 | `t_transport_cpu` | `max(0, t_cpu_run - t_compute)` |
 | `t_wall` | Real elapsed time of the CXL run, including TCP blocking |
 
-For DRAM, `t_compute = t_cpu_run`, `t_cxl_model = 0`, and `t_model = t_compute`.
+For all backends, `t_compute` is the median of three warm DRAM runs of the same
+kernel; the measured run's own CPU time is not used because of TCP overhead. For
+DRAM, `t_cxl_model = 0`, and `t_model = t_compute`.
 
 CPU time is read with `clock_gettime(CLOCK_THREAD_CPUTIME_ID)`. It excludes time
 blocked in `recv`/`send`, which is why it is much smaller than `t_wall`. The DRAM

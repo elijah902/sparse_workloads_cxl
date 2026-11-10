@@ -1,6 +1,6 @@
 # Platform and Backend
 
-This document records the actual platform, the CXLMemSim build, the M0/M1/M2
+This document records the actual platform, the CXLMemSim build, the M0/M1/M2/M3
 validation, and the timing model used by all experiments.
 
 ## Host
@@ -77,10 +77,11 @@ about 260 ns because the server adds a 50 ns write penalty plus transfer time.
 The important facts are that data round-trips correctly and the modeled latency
 is nonzero and stable.
 
-## M1 and M2 validation
+## M1, M2, and M3 validation
 
 M1 added the `TieredArray` abstraction, the software cache, `MemoryStats`, and
-the 2D stencil. M2 added CSR graph builders and BFS. Four CTest cases pass:
+the 2D stencil. M2 added CSR graph builders and BFS. M3 added CSR, SELL-C-σ, and
+BCSR formats with SpMV. Five CTest cases pass:
 
 | Test | What it checks |
 |---|---|
@@ -88,6 +89,7 @@ the 2D stencil. M2 added CSR graph builders and BFS. Four CTest cases pass:
 | `tiered_array_test` | DRAM and both CXL backends; cache policies; partial reads; write-through invalidation; exact counters |
 | `stencil_test` | Naive and row-blocked kernels match the host reference; exact cache/line/block counters |
 | `bfs_test` | All BFS kernels on six graph shapes; exact top-down/bottom-up counters; CXL direct and block |
+| `spmv_test` | All SpMV formats on several matrices; exact work accounting; CXL direct and block |
 
 The CXL cases connect to `cxlmemsim_server`; if it is not running they report a
 skip.
@@ -95,10 +97,11 @@ skip.
 ```bash
 ./scripts/run_server.sh &
 ctest --test-dir build --output-on-failure
-# 1/4 cxl_client_smoke ... Passed
-# 2/4 tiered_array_test ... Passed
-# 3/4 stencil_test ... Passed
-# 4/4 bfs_test ... Passed
+# 1/5 cxl_client_smoke ... Passed
+# 2/5 tiered_array_test ... Passed
+# 3/5 stencil_test ... Passed
+# 4/5 bfs_test ... Passed
+# 5/5 spmv_test ... Passed
 ```
 
 ### M1 calibration summary
