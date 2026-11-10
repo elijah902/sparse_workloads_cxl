@@ -258,6 +258,7 @@ the code.
 | **M1** | Repo skeleton, `TieredArray`, software cache, dataset utilities, 2D stencil | **Done 2026-11-09.** Stencil runs in DRAM/direct/block; exact line/cache counts match; M1 table recorded |
 | **M2** | BFS top-down, bottom-up, hybrid; `bfs.md`; sweeps | **Done 2026-11-09.** Correct on all test graphs; M2 table recorded; hybrid cuts CXL lines 3.1× vs top-down |
 | **M3** | SpMV CSR, SELL-C-σ, BCSR; `spmv.md`; sweeps | **Done 2026-11-09.** Correct on all matrices; CSR is best format (SELL/BCSR lose to padding); M3 table recorded |
+| **M4** | k-NN stretch; `knn.md`; sweeps | **Done 2026-11-09.** Brute force and tiled kernels implemented; all match the reference; M4 table recorded |
 | **M4** | k-NN stretch | Correct top-k; tiled vs brute-force comparison |
 | **M5** | Cross-algorithm analysis, survey, final report, reproduction | Report and repo reproduce every figure |
 
@@ -283,6 +284,7 @@ The repository provides (and will extend):
 - `scripts/run_stencil_calibration.sh` — regenerate the M1 calibration CSV.
 - `scripts/run_bfs_calibration.sh` — regenerate the M2 BFS calibration CSV.
 - `scripts/run_spmv_calibration.sh` — regenerate the M3 SpMV calibration CSV.
+- `scripts/run_knn_calibration.sh` — regenerate the M4 k-NN calibration CSV.
 - `scripts/run_experiments.sh` — (planned) run the full matrix and write CSV.
 - `scripts/plot_results.py` — (planned) regenerate figures from CSV.
 - `results/raw/` — raw CSV output (git-ignored; regenerate with the scripts).
@@ -301,6 +303,7 @@ ctest --test-dir build --output-on-failure
 ./scripts/run_stencil_calibration.sh
 ./scripts/run_bfs_calibration.sh
 ./scripts/run_spmv_calibration.sh
+./scripts/run_knn_calibration.sh
 ```
 
 ## 12. Progress log
@@ -340,6 +343,13 @@ ctest --test-dir build --output-on-failure
   loses on padding/layout trade-offs (24,100 vs 12,545 line fetches on RMAT) and
   BCSR over-pads badly at small block sizes (18.2 ms `t_model` at 4x4 on RMAT);
   CXL SpMV on RMAT is ~6.7× DRAM with a ~91% software-cache hit rate.
+- **2026-11-09 — M4 complete.** Implemented the k-NN stretch (brute force vs
+  tiled over a CXL-backed dataset; queries in DRAM). Added `knn_test` and
+  `knn_bench`. All six CTest cases pass; M4 table recorded in
+  `results/raw/m4_knn.csv`. Key results: CXL k-NN penalty ~4.8x DRAM on a 1024x8
+  dataset with 4 queries; block mode (4 KB) reaches a 99.8% cache hit rate versus
+  75% for per-vector direct-mode reads; tiling (32/64/256 vectors) did not change
+  CXL traffic once the working set fit in the cache.
 
 ## 13. References
 

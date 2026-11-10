@@ -24,6 +24,7 @@ target_link_libraries(cxl_memory PUBLIC cxl_client)
 
 add_library(cxl_workloads STATIC
     src/workloads/bfs.cpp
+    src/workloads/knn.cpp
     src/workloads/spmv.cpp
     src/workloads/stencil.cpp
 )
@@ -44,6 +45,12 @@ target_link_libraries(bfs_test PRIVATE cxl_workloads)
 
 add_executable(spmv_test tests/spmv_test.cpp)
 target_link_libraries(spmv_test PRIVATE cxl_workloads)
+
+add_executable(knn_test tests/knn_test.cpp)
+target_link_libraries(knn_test PRIVATE cxl_workloads)
+
+add_executable(knn_bench apps/knn_bench.cpp)
+target_link_libraries(knn_bench PRIVATE cxl_workloads)
 
 add_executable(stencil_bench apps/stencil_bench.cpp)
 target_link_libraries(stencil_bench PRIVATE cxl_workloads)
@@ -69,3 +76,6 @@ set_tests_properties(bfs_test PROPERTIES SKIP_RETURN_CODE 77)
 
 add_test(NAME spmv_test COMMAND spmv_test)
 set_tests_properties(spmv_test PROPERTIES SKIP_RETURN_CODE 77)
+
+add_test(NAME knn_test COMMAND knn_test)
+set_tests_properties(knn_test PROPERTIES SKIP_RETURN_CODE 77)

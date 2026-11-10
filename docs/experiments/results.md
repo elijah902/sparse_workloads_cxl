@@ -1,11 +1,12 @@
 # Results
 
-Status: M1/M2/M3 calibration recorded
+Status: M1/M2/M3/M4 calibration recorded
 Last updated: 2026-11-09
 
-Raw data: `results/raw/m1_stencil.csv`, `results/raw/m2_bfs.csv`, and
-`results/raw/m3_spmv.csv` (regenerate with `scripts/run_stencil_calibration.sh`,
-`scripts/run_bfs_calibration.sh`, and `scripts/run_spmv_calibration.sh`).
+Raw data: `results/raw/m1_stencil.csv`, `results/raw/m2_bfs.csv`,
+`results/raw/m3_spmv.csv`, and `results/raw/m4_knn.csv` (regenerate with
+`scripts/run_stencil_calibration.sh`, `scripts/run_bfs_calibration.sh`,
+`scripts/run_spmv_calibration.sh`, and `scripts/run_knn_calibration.sh`).
 
 ## M1 — Stencil calibration
 
@@ -195,10 +196,36 @@ the 64 KB cache.
 
 ## Next
 
-M4 adds the final algorithm (k-NN stretch), real-graph experiments, and the survey
-report. Results will be appended here.
+M5 adds the cross-algorithm analysis, survey report, and final report. Results
+will be appended here.
 
-## Next
+## M4 — k-NN calibration
 
-M4 adds the final algorithm (k-NN stretch), real-graph experiments, and the survey
-report. Results will be appended here.
+Raw data: `results/raw/m4_knn.csv` (regenerate with
+`scripts/run_knn_calibration.sh`). Platform and server settings are the same as
+M3: 200 ns base latency, TCP, file-backed pool. Full walkthrough:
+[docs/algorithms/knn.md](../algorithms/knn.md).
+
+Sweep: dataset 1024 vectors x 8 dims (65,536 bytes), 4 queries, k=2.
+
+| Backend | Kernel | Block | Cache | `t_model` ms | Line fetches | Hits | Misses | Hit rate | Bytes read |
+|---|---|---|---|---|---|---|---|---|---|
+| dram | brute | — | — | 0.087 | 0 | 0 | 0 | 0 | 0 |
+| cxl-direct | brute | — | 64 KB | 0.422 | 1,024 | 3,072 | 1,024 | 75.0% | 65,536 |
+| cxl-block | brute | 4 KB | 64 KB | 0.423 | 1,024 | 4,095 | 1 | 99.8% | 65,536 |
+| cxl-direct | tile | 64 | 64 KB | 0.315 | 1,024 | 3,072 | 1,024 | 75.0% | 65,536 |
+| cxl-direct | tile | 256 | 64 KB | 0.313 | 1,024 | 3,072 | 1,024 | 75.0% | 65,536 |
+| cxl-block | tile | 4 KB / 32 | 64 KB | 0.316 | 1,024 | 127 | 1 | 99.2% | 65,536 |
+
+### Observations
+
+1. **CXL k-NN penalty is modest.** Brute force on CXL is ~4.8x the DRAM compute in
+   `t_model` (0.42 ms vs 0.09 ms).
+2. **Block mode improves reuse.** Brute force with 4 KB blocks reaches a 99.8% hit
+   rate; per-vector direct-mode reads reach 75%.
+3. **Tiling is free once the working set fits.** Tiles of 32/64/256 vectors give
+   similar CXL traffic.
+
+## Final report
+
+M5 closes the loop: cross-algorithm analysis, survey report, and final report.

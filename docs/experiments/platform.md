@@ -1,6 +1,6 @@
 # Platform and Backend
 
-This document records the actual platform, the CXLMemSim build, the M0/M1/M2/M3
+This document records the actual platform, the CXLMemSim build, the M0/M1/M2/M3/M4
 validation, and the timing model used by all experiments.
 
 ## Host
@@ -77,11 +77,12 @@ about 260 ns because the server adds a 50 ns write penalty plus transfer time.
 The important facts are that data round-trips correctly and the modeled latency
 is nonzero and stable.
 
-## M1, M2, and M3 validation
+## M1 through M4 validation
 
 M1 added the `TieredArray` abstraction, the software cache, `MemoryStats`, and
 the 2D stencil. M2 added CSR graph builders and BFS. M3 added CSR, SELL-C-σ, and
-BCSR formats with SpMV. Five CTest cases pass:
+BCSR formats with SpMV. M4 added the k-NN stretch (brute force vs tiled). Six
+CTest cases pass:
 
 | Test | What it checks |
 |---|---|
@@ -90,6 +91,7 @@ BCSR formats with SpMV. Five CTest cases pass:
 | `stencil_test` | Naive and row-blocked kernels match the host reference; exact cache/line/block counters |
 | `bfs_test` | All BFS kernels on six graph shapes; exact top-down/bottom-up counters; CXL direct and block |
 | `spmv_test` | All SpMV formats on several matrices; exact work accounting; CXL direct and block |
+| `knn_test` | Brute force and tiled k-NN match the reference; CXL direct and block |
 
 The CXL cases connect to `cxlmemsim_server`; if it is not running they report a
 skip.
@@ -97,11 +99,12 @@ skip.
 ```bash
 ./scripts/run_server.sh &
 ctest --test-dir build --output-on-failure
-# 1/5 cxl_client_smoke ... Passed
-# 2/5 tiered_array_test ... Passed
-# 3/5 stencil_test ... Passed
-# 4/5 bfs_test ... Passed
-# 5/5 spmv_test ... Passed
+# 1/6 cxl_client_smoke ... Passed
+# 2/6 tiered_array_test ... Passed
+# 3/6 stencil_test ... Passed
+# 4/6 bfs_test ... Passed
+# 5/6 spmv_test ... Passed
+# 6/6 knn_test ... Passed
 ```
 
 ### M1 calibration summary
@@ -187,7 +190,7 @@ latency, and errors.
 - WSL2 has no hardware PMU, so host cache behavior is measured with a software
   model, Cachegrind, or optional Orion `perf stat` on the DRAM baseline.
 
-## Reproducing M0, M1, and M2
+## Reproducing M0 through M4
 
 ```bash
 ./scripts/build_cxlmemsim.sh
@@ -197,4 +200,6 @@ latency, and errors.
 ctest --test-dir build --output-on-failure
 ./scripts/run_stencil_calibration.sh   # writes results/raw/m1_stencil.csv
 ./scripts/run_bfs_calibration.sh       # writes results/raw/m2_bfs.csv
+./scripts/run_spmv_calibration.sh     # writes results/raw/m3_spmv.csv
+./scripts/run_knn_calibration.sh      # writes results/raw/m4_knn.csv
 ```

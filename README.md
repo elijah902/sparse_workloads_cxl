@@ -15,21 +15,25 @@ stencil**.
 
 ## Status
 
-**M3 complete.** M0 built the CXLMemSim server and validated the TCP client. M1
+**M4 complete.** M0 built the CXLMemSim server and validated the TCP client. M1
 added the `TieredArray` memory abstraction (DRAM, CXL direct, CXL block), an
 LRU/direct-mapped software cache, `MemoryStats` counters, and the calibration 2D
 stencil. M2 added CSR graph builders and BFS with top-down, bottom-up, and
 direction-optimizing hybrid kernels. M3 added CSR, SELL-C-σ, and BCSR formats with
-SpMV kernels. All five CTest cases pass and the M1/M2/M3 calibration data is
-recorded.
+SpMV kernels. M4 added the k-NN stretch (brute force vs tiled) with
+`knn_test`/`knn_bench`.
+
+All six CTest cases pass and the M1/M2/M3/M4 calibration data is recorded.
 
 See [docs/experiments/results.md](docs/experiments/results.md) for the numbers,
 [docs/algorithms/bfs.md](docs/algorithms/bfs.md) for the BFS walkthrough, and
-[docs/algorithms/spmv.md](docs/algorithms/spmv.md) for the SpMV walkthrough, and
-[docs/experiments/platform.md](docs/experiments/platform.md) for platform
+[docs/algorithms/spmv.md](docs/algorithms/spmv.md) and
+[docs/algorithms/knn.md](docs/algorithms/knn.md) for the SpMV and k-NN walkthroughs,
+and [docs/experiments/platform.md](docs/experiments/platform.md) for platform
 details.
 
-Next: the k-NN stretch (M4).
+Next: M5 — cross-algorithm analysis, CXL architecture survey, final report, and
+reproduction.
 
 ## Platform
 
@@ -72,6 +76,7 @@ ctest --test-dir build --output-on-failure
     --seed 7 --source 2048 --kernel hybrid --verify
 ./build/spmv_bench --backend dram --matrix rmat --n 4096 --nnz 65536 \
     --seed 7 --format csr --verify
+./build/knn_bench --backend dram --kernel brute --n 1024 --dim 8 --queries 4 --k 2 --verify
 ```
 
 Expected smoke-test output:
@@ -139,12 +144,28 @@ row. They share the backend, cache, transport, and timing options.
 | `--cache-kb <size>` | Software cache size, default 64 |
 | `--repeat <count>` | Number of measured runs |
 
+`knn_bench` (stretch algorithm):
+
+| Option | Meaning |
+|---|---|
+| `--kernel brute\|tile` | Brute force or tiled k-NN |
+| `--n <vectors>` | Dataset vectors (default 1024) |
+| `--dim <dim>` | Vector dim (default 8) |
+| `--queries <count>` | Query vectors (default 4) |
+| `--k <count>` | Top-k (default 3) |
+| `--tile <vectors>` | Tile size for tiled kernel (default 64) |
+| `--seed <value>` | Dataset seed (default 77) |
+| `--block-kb <size>` | Block fetch size (default 64) |
+| `--cache-kb <size>` | Software cache size (default 64) |
+| `--repeat <count>` | Number of measured runs |
+
 Regenerate the calibration tables with:
 
 ```bash
 ./scripts/run_stencil_calibration.sh   # results/raw/m1_stencil.csv
 ./scripts/run_bfs_calibration.sh       # results/raw/m2_bfs.csv
 ./scripts/run_spmv_calibration.sh     # results/raw/m3_spmv.csv
+./scripts/run_knn_calibration.sh      # results/raw/m4_knn.csv
 ```
 
 ## Server options
@@ -164,7 +185,7 @@ Regenerate the calibration tables with:
 ```text
 src/cxl/          TCP client and wire protocol
 src/memory/       TieredArray backends, software cache, memory counters
-src/workloads/    Algorithm kernels (stencil, BFS, SpMV; k-NN next)
+src/workloads/    Algorithm kernels (stencil, BFS, SpMV, k-NN; final survey next)
 apps/             Benchmark drivers
 tests/            Transport, memory, and kernel tests
 scripts/          Build, run, and calibration scripts
