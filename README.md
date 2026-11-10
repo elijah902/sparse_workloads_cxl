@@ -8,13 +8,22 @@ stencil**.
 
 - Full plan: [docs/project-plan.md](docs/project-plan.md)
 - Platform decision: [docs/adr/0001-cxl-platform-and-backend.md](docs/adr/0001-cxl-platform-and-backend.md)
+- Timing model: [docs/adr/0002-timing-and-compute-reference.md](docs/adr/0002-timing-and-compute-reference.md)
+- Methodology: [docs/experiments/methodology.md](docs/experiments/methodology.md)
+- Results: [docs/experiments/results.md](docs/experiments/results.md)
 - Glossary: [GLOSSARY.md](GLOSSARY.md)
 
 ## Status
 
-**M0 complete.** The CXLMemSim server builds on WSL2 and the client smoke test
-validates two 64-byte lines with a stable modeled latency of 210 ns (200 ns base
-+ transfer time). See [docs/experiments/platform.md](docs/experiments/platform.md).
+**M1 complete.** M0 built the CXLMemSim server and validated the TCP client. M1
+adds the `TieredArray` memory abstraction (DRAM, CXL direct, CXL block), an
+LRU/direct-mapped software cache, `MemoryStats` counters, and the calibration
+2D stencil (naive and row-blocked kernels). All three CTest tests pass and the
+M1 calibration is recorded. Next: BFS (M2).
+
+See [docs/experiments/results.md](docs/experiments/results.md) for the M1
+numbers and [docs/experiments/platform.md](docs/experiments/platform.md) for the
+platform details.
 
 ## Platform
 
@@ -24,17 +33,19 @@ the server owns the simulated CXL pool and returns a modeled latency for each
 cache-line request. A small hand-written TCP client connects the algorithms to
 the server.
 
-The server's returned latency is charged analytically:
+The server's returned latency is charged analytically (ADR 0002):
 
-- `t_compute`: measured CPU time in the algorithm kernel
+- `t_compute`: median CPU time of the same kernel on the DRAM backend
 - `t_cxl_model`: sum of server-returned latencies
-- `t_model = t_compute + t_cxl_model`
+- `t_model = t_compute + t_cxl_model` (the CXL result used in comparisons)
+- `t_cpu_run`: CPU time of the CXL run, including transport work
+- `t_transport_cpu = max(0, t_cpu_run - t_compute)`
 - `t_wall`: real elapsed time, including TCP overhead (reported separately)
 
 ## Prerequisites
 
 - Linux or WSL2
-- CMake >= 3.25, Ninja, GCC >= 13 (C++20 `std::format`)
+- CMake >= 3.20, Ninja, GCC >= 12 (C++20)
 - `spdlog` (the build script installs it under `~/.local` if missing)
 - No PMU required
 
@@ -47,9 +58,10 @@ The server's returned latency is charged analytically:
 # 2. Start the server in one terminal
 ./scripts/run_server.sh
 
-# 3. Build this project and run the smoke test
+# 3. Build this project, run the tests, and try the benchmark
 ./scripts/build.sh
-./build/cxl_client_smoke
+ctest --test-dir build --output-on-failure
+./build/stencil_bench --backend dram --kernel row --n 256 --steps 4 --verify
 ```
 
 Expected smoke-test output:
@@ -58,13 +70,39 @@ Expected smoke-test output:
 connected to cxlmemsim_server at 127.0.0.1:9999
 line A ok: latency=...
 line B ok: latency=...
+line A write ok: latency=...
 repeated reads: 1000, avg modeled latency=...
 stats: reads=... writes=... bytes_read=... bytes_written=... modeled_ns=... errors=0
 PASS
 ```
 
-If the server is not running, the smoke test exits with code 77 and prints the
-start command.
+If the server is not running, the CXL tests and the CXL benchmark exit with a
+clear message (the CTest cases use skip code 77).
+
+## Benchmarks
+
+`stencil_bench` runs the 2D stencil on any backend and prints timing, counters,
+and (with `--csv`) a machine-readable row. Key options:
+
+| Option | Meaning |
+|---|---|
+| `--backend dram\|cxl-direct\|cxl-block` | Memory backend |
+| `--kernel naive\|row` | Per-cell or row-blocked kernel |
+| `--n <size>` | Grid side length |
+| `--steps <count>` | Stencil iterations |
+| `--block-kb <size>` | Block fetch size for `cxl-block` |
+| `--cache-kb <size>` | Software cache size |
+| `--repeat <count>` | Number of measured runs |
+| `--csv`, `--no-header` | CSV output control |
+| `--verify` | Compare against the host reference |
+
+Regenerate the M1 calibration table with:
+
+```bash
+./scripts/run_stencil_calibration.sh
+```
+
+It writes `results/raw/m1_stencil.csv`.
 
 ## Server options
 
@@ -81,11 +119,15 @@ start command.
 ## Layout
 
 ```text
-src/cxl/        TCP client and wire protocol
-tests/          Client smoke test
-scripts/        Build and run scripts
-patches/        Minimal patches applied to the pinned CXLMemSim checkout
-docs/           Project plan, ADR, algorithm and experiment docs
+src/cxl/          TCP client and wire protocol
+src/memory/       TieredArray backends, software cache, memory counters
+src/workloads/    Algorithm kernels (stencil; BFS and SpMV next)
+apps/             Benchmark drivers
+tests/            Transport, memory, and kernel tests
+scripts/          Build, run, and calibration scripts
+patches/          Minimal patches applied to the pinned CXLMemSim checkout
+results/          Raw (git-ignored) and summarized experiment data
+docs/             Project plan, ADRs, algorithm and experiment docs
 ```
 
 ## Pinned versions

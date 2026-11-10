@@ -14,15 +14,35 @@ document where useful.
 - **DRAM tier:** Host memory in the algorithm process. In the experiments it
   holds the frontier, visited state, vectors, and staging buffers.
 - **Cache line:** 64 bytes. CXL requests are cache-line sized.
+- **Fetch unit:** The granularity a backend loads on a cache miss: 64 bytes for
+  direct mode, or `block_bytes` for block mode.
+- **Line fetch:** One 64-byte read request sent to the server. A block fetch is
+  made of several line fetches.
+- **Block fetch:** One fill of a block-mode fetch unit (a tile of consecutive
+  64-byte lines).
 - **Direct mode:** Fetch one 64-byte line from CXL on demand.
 - **Block mode:** Fetch a contiguous tile from CXL into a DRAM staging buffer,
-  then compute on the tile.
+  then compute on the tile. Models prefetch granularity, not link width, because
+  the server caps a request at 64 bytes.
+- **Software cache:** The `TieredArray` cache over CXL fetch units (LRU or
+  direct-mapped). Models CXL-side reuse, not host L1/L2/LLC.
+- **Write-through:** Writes go to the pool and invalidate the touched fetch unit
+  in the software cache.
 - **Modeled latency (`t_cxl_model`):** Sum of the server-returned `latency_ns`
   values for all CXL requests.
+- **Compute reference (`t_compute`):** Median CPU time of the same kernel on the
+  DRAM backend. Used instead of the CXL run's CPU time so TCP work does not
+  contaminate the result (ADR 0002).
 - **Modeled time (`t_model`):** `t_compute + t_cxl_model`. The CXL result used in
   comparisons.
-- **Wall time (`t_wall`):** Real elapsed time, including TCP overhead. Reported
+- **Transport CPU (`t_transport_cpu`):** `max(0, t_cpu_run - t_compute)`. Host CPU
+  time spent in the TCP client, reported separately.
+- **CPU run time (`t_cpu_run`):** CPU time of the CXL run itself, including
+  transport work.
+- **Wall time (`t_wall`):** Real elapsed time, including TCP blocking. Reported
   for transparency, not used as the CXL result.
+- **Work unit:** One unit of algorithm progress: a grid cell (stencil), an
+  examined edge (BFS), a nonzero (SpMV), or a distance computation (k-NN).
 - **PMU:** Performance Monitoring Unit. Hardware counters used by `perf`.
 - **PEBS:** Intel Precise Event-Based Sampling. Provides data addresses for
   load-miss samples. Unavailable on Orion and WSL2.

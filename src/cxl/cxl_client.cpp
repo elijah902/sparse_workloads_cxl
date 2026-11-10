@@ -166,7 +166,8 @@ bool CXLClient::read(std::uint64_t addr, void *out, std::size_t size, std::uint6
     return true;
 }
 
-bool CXLClient::write(std::uint64_t addr, const void *in, std::size_t size) {
+bool CXLClient::write(std::uint64_t addr, const void *in, std::size_t size,
+                      std::uint64_t *latency_ns) {
     if (size == 0 || size > kCacheLineSize || in == nullptr) {
         ++stats_.errors;
         return false;
@@ -186,6 +187,9 @@ bool CXLClient::write(std::uint64_t addr, const void *in, std::size_t size) {
     ++stats_.writes;
     stats_.bytes_written += size;
     stats_.modeled_ns += resp.latency_ns;
+    if (latency_ns != nullptr) {
+        *latency_ns = resp.latency_ns;
+    }
     return true;
 }
 

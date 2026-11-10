@@ -51,7 +51,8 @@ int main(int argc, char **argv) {
     const auto a = pattern(7);
     const auto b = pattern(200);
 
-    if (!client.write_line(kLineA, a)) {
+    std::uint64_t write_latency_a = 0;
+    if (!client.write(kLineA, a.data(), a.size(), &write_latency_a)) {
         return fail("write line A");
     }
     if (!client.write_line(kLineB, b)) {
@@ -81,6 +82,7 @@ int main(int argc, char **argv) {
 
     std::printf("line A ok: latency=%llu ns\n", static_cast<unsigned long long>(latency_a));
     std::printf("line B ok: latency=%llu ns\n", static_cast<unsigned long long>(latency_b));
+    std::printf("line A write ok: latency=%llu ns\n", static_cast<unsigned long long>(write_latency_a));
 
     // A short repeated-read loop checks that the connection stays healthy and
     // gives a first look at the modeled latency distribution.

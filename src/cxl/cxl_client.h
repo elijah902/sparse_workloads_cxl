@@ -36,7 +36,7 @@ public:
 
     // Read/write up to 64 bytes. `addr` is an offset into the server's CXL pool.
     bool read(std::uint64_t addr, void *out, std::size_t size, std::uint64_t *latency_ns = nullptr);
-    bool write(std::uint64_t addr, const void *in, std::size_t size);
+    bool write(std::uint64_t addr, const void *in, std::size_t size, std::uint64_t *latency_ns = nullptr);
 
     // Cache-line helpers. `addr` must be 64-byte aligned.
     bool read_line(std::uint64_t addr, std::array<std::uint8_t, kCacheLineSize> &out,

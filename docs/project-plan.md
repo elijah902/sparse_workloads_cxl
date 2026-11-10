@@ -91,14 +91,18 @@ sleep; the client charges the latency analytically.
 
 | Quantity | Meaning |
 |---|---|
-| `t_compute` | CPU time in the algorithm kernel, measured natively |
+| `t_compute` | Median CPU time of the same kernel on the DRAM backend (3 runs) |
 | `t_cxl_model` | Sum of server-returned latencies for all CXL requests |
 | `t_model` | `t_compute + t_cxl_model` — the CXL result used in comparisons |
-| `t_wall` | Real elapsed time; includes TCP overhead, reported for transparency |
+| `t_cpu_run` | CPU time of the CXL run, including transport work |
+| `t_transport_cpu` | `max(0, t_cpu_run - t_compute)` |
+| `t_wall` | Real elapsed time; includes TCP blocking, reported for transparency |
 
-This is a trace-driven simulation: compute time is measured, CXL time is modeled
-by CXLMemSim. TCP overhead must not be allowed to contaminate the CXL result.
-The DRAM backend runs the same kernel and gives the baseline.
+This is a trace-driven simulation: compute time is measured on DRAM, CXL time is
+modeled by CXLMemSim. TCP overhead must not be allowed to contaminate the CXL
+result. The DRAM backend runs the same kernel and gives the baseline. See
+[ADR 0002](adr/0002-timing-and-compute-reference.md) for why the CXL run's own
+CPU time is not used as `t_compute`.
 
 ### Cache behavior
 
@@ -211,14 +215,15 @@ Rules:
 |---|---|
 | `docs/project-plan.md` | This plan: objective, platform, architecture, algorithms, experiments, milestones |
 | `docs/adr/0001-cxl-platform-and-backend.md` | Why server + TCP client; why legacy/QEMU/SlugAllocator were rejected |
+| `docs/adr/0002-timing-and-compute-reference.md` | Why `t_compute` is measured on DRAM; transport separation; 64-byte cap |
 | `GLOSSARY.md` | CXL, CSR, SELL-C-σ, BCSR, BFS, SpMV, kNN, direct/block, modeled time, etc. |
 | `docs/algorithms/bfs.md` | BFS problem, CSR, variants, **code walkthrough**, CXL pattern, correctness, experiments |
 | `docs/algorithms/spmv.md` | SpMV formats, variants, **code walkthrough**, CXL pattern, correctness, experiments |
 | `docs/algorithms/knn.md` | k-NN stretch: brute force, tiling, **code walkthrough**, experiments |
-| `docs/algorithms/stencil.md` | Calibration workload and expected behavior |
-| `docs/experiments/platform.md` | Platform constraints, server/client protocol, timing model, limitations |
-| `docs/experiments/methodology.md` | Metrics, datasets, repetition, pinning, statistics, cache measurements |
-| `docs/experiments/results.md` | Tables and plots produced by the experiment scripts |
+| `docs/algorithms/stencil.md` | Calibration workload, **code walkthrough**, counters, M1 results |
+| `docs/experiments/platform.md` | Platform constraints, server/client protocol, M0 validation, limitations |
+| `docs/experiments/methodology.md` | Metrics, timing, counters, cache model, repetition, pinning, cache measurements |
+| `docs/experiments/results.md` | Tables and observations produced by the experiment scripts |
 | `docs/report/survey.md` | Memory-centric architectures and CXL/disaggregated memory survey |
 | `docs/report/final-report.md` | Final report connecting survey, design, and measurements |
 | `README.md` | Build, run, reproduce |
@@ -250,7 +255,7 @@ the code.
 | Phase | Work | Exit criterion |
 |---|---|---|
 | **M0** | Build `cxlmemsim_server`; implement `CXLClient`; write/read one line | **Done 2026-11-09.** Data round-trips; 210 ns modeled latency; 0 errors |
-| **M1** | Repo skeleton, common utilities, dataset loaders, 2D stencil | Stencil runs in DRAM/direct/block; line counts match expectations |
+| **M1** | Repo skeleton, `TieredArray`, software cache, dataset utilities, 2D stencil | **Done 2026-11-09.** Stencil runs in DRAM/direct/block; exact line/cache counts match; M1 table recorded |
 | **M2** | BFS top-down, bottom-up, hybrid; `bfs.md`; sweeps | Correct on all graphs; edges/s, CXL bytes, cache-hit plots |
 | **M3** | SpMV CSR, SELL-C-σ, BCSR; `spmv.md`; sweeps | Correct on all matrices; GFLOP/s and CXL-byte plots |
 | **M4** | k-NN stretch | Correct top-k; tiled vs brute-force comparison |
@@ -270,13 +275,29 @@ the code.
 
 ## 11. Reproducibility
 
-The repository will provide:
+The repository provides (and will extend):
 
 - `scripts/build_cxlmemsim.sh` — clone and build the pinned CXLMemSim server.
 - `scripts/run_server.sh` — start the server with a recorded configuration.
-- `scripts/run_experiments.sh` — run the full matrix and write CSV.
-- `scripts/plot_results.py` — regenerate figures from CSV.
-- A recorded `results/manifest.json` with commit, compiler, flags, and options.
+- `scripts/build.sh` — build this project and its tests.
+- `scripts/run_stencil_calibration.sh` — regenerate the M1 calibration CSV.
+- `scripts/run_experiments.sh` — (planned) run the full matrix and write CSV.
+- `scripts/plot_results.py` — (planned) regenerate figures from CSV.
+- `results/raw/` — raw CSV output (git-ignored; regenerate with the scripts).
+- `results/` — committed summary tables and figures.
+- A recorded `results/manifest.json` with commit, compiler, flags, and options
+  (planned for the final experiment run).
+
+Every raw result must record the CXLMemSim commit, compiler version, flags, and
+server options. The M1 calibration is reproducible with:
+
+```bash
+./scripts/build_cxlmemsim.sh
+./scripts/run_server.sh &
+./scripts/build.sh
+ctest --test-dir build --output-on-failure
+./scripts/run_stencil_calibration.sh
+```
 
 ## 12. Progress log
 
@@ -285,6 +306,16 @@ The repository will provide:
   `CXLClient` and a smoke test. Two 64-byte lines round-trip correctly; 1,002
   reads and 2 writes completed with 0 errors; modeled latency is 210 ns at a
   200 ns base setting. Reproducible build script and `ctest` both pass.
+- **2026-11-09 — M1 complete.** Implemented `TieredArray` (DRAM, CXL direct,
+  CXL block), the LRU/direct-mapped software cache, and `MemoryStats`. Added the
+  naive and row-blocked 2D stencil kernels with a host reference, exact-counter
+  tests, and `stencil_bench`. All three CTest tests pass. Recorded the M1
+  calibration in `results/raw/m1_stencil.csv`. Key results: the CXL row kernel
+  costs about 30× the DRAM kernel in `t_model` (7.68 ms vs 0.25 ms); cache size
+  changes evictions but not hits for a streaming pass; block mode does not
+  reduce modeled latency because the server caps requests at 64 bytes. Adopted
+  ADR 0002: `t_compute` is measured on the DRAM backend so TCP CPU cost does not
+  contaminate the CXL result.
 
 ## 13. References
 
