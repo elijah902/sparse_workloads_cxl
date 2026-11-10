@@ -1,0 +1,10 @@
+# Build outputs
+/build/
+/third_party/CXLMemSim/build/
+/third_party/CXLMemSim/
+/third_party/spdlog/
+/third_party/spdlog-build/
+
+# Runtime artifacts
+*.backing
+/results/raw/
