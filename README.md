@@ -1,6 +1,4 @@
-# CXL Memory-Centric Algorithms
-
-Study memory-centric algorithm design with CXL-attached memory, using
+This respository contains experiements with memory-centric algorithm design with CXL-attached memory, using
 [CXLMemSim](https://github.com/SlugLab/CXLMemSim) as the memory model.
 
 Core algorithms: **BFS** and **SpMV**. Stretch: **k-NN**. Calibration: **2D
@@ -39,9 +37,7 @@ Next: final reproducibility check and final report freeze (M5).
 
 ## Platform
 
-The laptop runs WSL2, which has no hardware PMU. CXLMemSim's legacy sampler is
-therefore unavailable. This project uses `cxlmemsim_server`, which needs no PMU:
-the server owns the simulated CXL pool and returns a modeled latency for each
+This project uses `cxlmemsim_server`. The server owns the simulated CXL pool and returns a modeled latency for each
 cache-line request. A small hand-written TCP client connects the algorithms to
 the server.
 
@@ -56,10 +52,9 @@ The server's returned latency is charged analytically (ADR 0002):
 
 ## Prerequisites
 
-- Linux or WSL2
+- Linux
 - CMake >= 3.20, Ninja, GCC >= 12 (C++20)
 - `spdlog` (the build script installs it under `~/.local` if missing)
-- No PMU required
 
 ## Build
 
@@ -68,7 +63,7 @@ The server's returned latency is charged analytically (ADR 0002):
 ./scripts/build_cxlmemsim.sh
 
 # 2. Start the server in one terminal
-./scripts/run_server.sh
+./scripts/run_server.sih
 
 # 3. Build this project, run the tests, and try the benchmarks
 ./scripts/build.sh
