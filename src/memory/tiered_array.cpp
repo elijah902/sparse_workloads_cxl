@@ -65,6 +65,12 @@ void TieredArray::check_range(std::size_t offset, std::size_t len) const {
     }
 }
 
+void TieredArray::clear_cache() {
+    if (cache_) {
+        cache_->clear();
+    }
+}
+
 void TieredArray::load(std::size_t offset, const void *src, std::size_t len) {
     check_range(offset, len);
     if (len == 0) {

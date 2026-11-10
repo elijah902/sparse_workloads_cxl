@@ -15,15 +15,17 @@ stencil**.
 
 ## Status
 
-**M1 complete.** M0 built the CXLMemSim server and validated the TCP client. M1
-adds the `TieredArray` memory abstraction (DRAM, CXL direct, CXL block), an
-LRU/direct-mapped software cache, `MemoryStats` counters, and the calibration
-2D stencil (naive and row-blocked kernels). All three CTest tests pass and the
-M1 calibration is recorded. Next: BFS (M2).
+**M2 complete.** M0 built the CXLMemSim server and validated the TCP client. M1
+added the `TieredArray` memory abstraction (DRAM, CXL direct, CXL block), an
+LRU/direct-mapped software cache, `MemoryStats` counters, and the calibration 2D
+stencil. M2 adds CSR graph builders (grid, RMAT, random) and BFS with top-down,
+bottom-up, and direction-optimizing hybrid kernels. All four CTest cases pass and
+the M1/M2 calibration data is recorded. Next: SpMV (M3).
 
-See [docs/experiments/results.md](docs/experiments/results.md) for the M1
-numbers and [docs/experiments/platform.md](docs/experiments/platform.md) for the
-platform details.
+See [docs/experiments/results.md](docs/experiments/results.md) for the numbers,
+[docs/algorithms/bfs.md](docs/algorithms/bfs.md) for the BFS walkthrough, and
+[docs/experiments/platform.md](docs/experiments/platform.md) for platform
+details.
 
 ## Platform
 
@@ -58,10 +60,12 @@ The server's returned latency is charged analytically (ADR 0002):
 # 2. Start the server in one terminal
 ./scripts/run_server.sh
 
-# 3. Build this project, run the tests, and try the benchmark
+# 3. Build this project, run the tests, and try the benchmarks
 ./scripts/build.sh
 ctest --test-dir build --output-on-failure
 ./build/stencil_bench --backend dram --kernel row --n 256 --steps 4 --verify
+./build/bfs_bench --backend dram --graph rmat --n 4096 --edges 32768 \
+    --seed 7 --source 2048 --kernel hybrid --verify
 ```
 
 Expected smoke-test output:
@@ -81,8 +85,10 @@ clear message (the CTest cases use skip code 77).
 
 ## Benchmarks
 
-`stencil_bench` runs the 2D stencil on any backend and prints timing, counters,
-and (with `--csv`) a machine-readable row. Key options:
+Both benchmarks print timing, counters, and (with `--csv`) a machine-readable
+row. They share the backend, cache, transport, and timing options.
+
+`stencil_bench` (calibration workload):
 
 | Option | Meaning |
 |---|---|
@@ -96,13 +102,25 @@ and (with `--csv`) a machine-readable row. Key options:
 | `--csv`, `--no-header` | CSV output control |
 | `--verify` | Compare against the host reference |
 
-Regenerate the M1 calibration table with:
+`bfs_bench` (core algorithm):
+
+| Option | Meaning |
+|---|---|
+| `--graph grid\|rmat\|random` | Graph generator |
+| `--kernel topdown\|bottomup\|hybrid` | BFS variant |
+| `--n <vertices>` | Target vertex count |
+| `--edges <count>` | RMAT edge count (default `8*n`) |
+| `--degree <avg>` | Random-graph average degree |
+| `--seed <value>` | Deterministic graph seed |
+| `--source <vertex>` | BFS source |
+| `--directed` | Directed graph (top-down only) |
+
+Regenerate the calibration tables with:
 
 ```bash
-./scripts/run_stencil_calibration.sh
+./scripts/run_stencil_calibration.sh   # results/raw/m1_stencil.csv
+./scripts/run_bfs_calibration.sh       # results/raw/m2_bfs.csv
 ```
-
-It writes `results/raw/m1_stencil.csv`.
 
 ## Server options
 
@@ -121,7 +139,7 @@ It writes `results/raw/m1_stencil.csv`.
 ```text
 src/cxl/          TCP client and wire protocol
 src/memory/       TieredArray backends, software cache, memory counters
-src/workloads/    Algorithm kernels (stencil; BFS and SpMV next)
+src/workloads/    Algorithm kernels (stencil, BFS; SpMV next)
 apps/             Benchmark drivers
 tests/            Transport, memory, and kernel tests
 scripts/          Build, run, and calibration scripts

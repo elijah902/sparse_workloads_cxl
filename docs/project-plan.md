@@ -256,7 +256,7 @@ the code.
 |---|---|---|
 | **M0** | Build `cxlmemsim_server`; implement `CXLClient`; write/read one line | **Done 2026-11-09.** Data round-trips; 210 ns modeled latency; 0 errors |
 | **M1** | Repo skeleton, `TieredArray`, software cache, dataset utilities, 2D stencil | **Done 2026-11-09.** Stencil runs in DRAM/direct/block; exact line/cache counts match; M1 table recorded |
-| **M2** | BFS top-down, bottom-up, hybrid; `bfs.md`; sweeps | Correct on all graphs; edges/s, CXL bytes, cache-hit plots |
+| **M2** | BFS top-down, bottom-up, hybrid; `bfs.md`; sweeps | **Done 2026-11-09.** Correct on all test graphs; M2 table recorded; hybrid cuts CXL lines 3.1× vs top-down |
 | **M3** | SpMV CSR, SELL-C-σ, BCSR; `spmv.md`; sweeps | Correct on all matrices; GFLOP/s and CXL-byte plots |
 | **M4** | k-NN stretch | Correct top-k; tiled vs brute-force comparison |
 | **M5** | Cross-algorithm analysis, survey, final report, reproduction | Report and repo reproduce every figure |
@@ -281,6 +281,7 @@ The repository provides (and will extend):
 - `scripts/run_server.sh` — start the server with a recorded configuration.
 - `scripts/build.sh` — build this project and its tests.
 - `scripts/run_stencil_calibration.sh` — regenerate the M1 calibration CSV.
+- `scripts/run_bfs_calibration.sh` — regenerate the M2 BFS calibration CSV.
 - `scripts/run_experiments.sh` — (planned) run the full matrix and write CSV.
 - `scripts/plot_results.py` — (planned) regenerate figures from CSV.
 - `results/raw/` — raw CSV output (git-ignored; regenerate with the scripts).
@@ -297,6 +298,7 @@ server options. The M1 calibration is reproducible with:
 ./scripts/build.sh
 ctest --test-dir build --output-on-failure
 ./scripts/run_stencil_calibration.sh
+./scripts/run_bfs_calibration.sh
 ```
 
 ## 12. Progress log
@@ -316,6 +318,18 @@ ctest --test-dir build --output-on-failure
   reduce modeled latency because the server caps requests at 64 bytes. Adopted
   ADR 0002: `t_compute` is measured on the DRAM backend so TCP CPU cost does not
   contaminate the CXL result.
+- **2026-11-09 — M2 complete.** Implemented CSR graph builders (grid, RMAT,
+  random), a host reference BFS, and three kernels: top-down, bottom-up, and
+  direction-optimizing hybrid. Graph arrays live in CXL; frontier, bitmap, and
+  distances stay in DRAM. Added `clear_cache()` so measured runs start cold
+  without rewriting the pool. `bfs_test` passes on six graph shapes and both CXL
+  backends. Recorded `results/raw/m2_bfs.csv`. Key results: on RMAT
+  (`n=4096`, `m=53,635`) hybrid is 2.8× faster than top-down in `t_model`
+  (0.425 ms vs 1.198 ms) and fetches 3.1× fewer CXL lines; pure bottom-up loses
+  from a small frontier because it scans all vertices; block prefetching
+  over-fetches 3–6× the lines on the irregular graph; CXL BFS is only ~3× DRAM,
+  versus 30× for the streaming stencil, because CSR access has enough spatial
+  locality for a modest cache to capture.
 
 ## 13. References
 

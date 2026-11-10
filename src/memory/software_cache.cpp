@@ -124,6 +124,24 @@ void SoftwareCache::invalidate(std::uint64_t line_id) {
     free_slots_.push_back(slot);
 }
 
+void SoftwareCache::clear() {
+    if (policy_ == Policy::DirectMapped) {
+        for (auto &slot : slots_) {
+            slot.valid = false;
+        }
+        return;
+    }
+
+    lru_map_.clear();
+    lru_order_.clear();
+    free_slots_.clear();
+    free_slots_.reserve(slots_.size());
+    for (std::size_t i = 0; i < slots_.size(); ++i) {
+        slots_[i].valid = false;
+        free_slots_.push_back(i);
+    }
+}
+
 void SoftwareCache::reset_stats() {
     hits_ = 0;
     misses_ = 0;

@@ -1,6 +1,6 @@
 # Platform and Backend
 
-This document records the actual platform, the CXLMemSim build, the M0/M1
+This document records the actual platform, the CXLMemSim build, the M0/M1/M2
 validation, and the timing model used by all experiments.
 
 ## Host
@@ -77,16 +77,17 @@ about 260 ns because the server adds a 50 ns write penalty plus transfer time.
 The important facts are that data round-trips correctly and the modeled latency
 is nonzero and stable.
 
-## M1 validation
+## M1 and M2 validation
 
 M1 added the `TieredArray` abstraction, the software cache, `MemoryStats`, and
-the 2D stencil. Three CTest cases pass:
+the 2D stencil. M2 added CSR graph builders and BFS. Four CTest cases pass:
 
 | Test | What it checks |
 |---|---|
 | `cxl_client_smoke` | Two 64-byte lines round-trip; read and write latency nonzero |
 | `tiered_array_test` | DRAM and both CXL backends; cache policies; partial reads; write-through invalidation; exact counters |
 | `stencil_test` | Naive and row-blocked kernels match the host reference; exact cache/line/block counters |
+| `bfs_test` | All BFS kernels on six graph shapes; exact top-down/bottom-up counters; CXL direct and block |
 
 The CXL cases connect to `cxlmemsim_server`; if it is not running they report a
 skip.
@@ -94,9 +95,10 @@ skip.
 ```bash
 ./scripts/run_server.sh &
 ctest --test-dir build --output-on-failure
-# 1/3 cxl_client_smoke ... Passed
-# 2/3 tiered_array_test ... Passed
-# 3/3 stencil_test ... Passed
+# 1/4 cxl_client_smoke ... Passed
+# 2/4 tiered_array_test ... Passed
+# 3/4 stencil_test ... Passed
+# 4/4 bfs_test ... Passed
 ```
 
 ### M1 calibration summary
@@ -112,7 +114,22 @@ server-returned latencies.
 | cxl-block (64 KB block, 64 KB cache) | 7.707 | 16,384 | 16 | 1,008 | 16 |
 
 The CXL row kernel costs about 30× the DRAM kernel in `t_model`, almost all of it
-modeled memory latency. Full data and observations are in
+modeled memory latency.
+
+### M2 calibration summary
+
+RMAT `n = 4,096`, `m = 53,635`, source 2048, 200 ns base latency. Graph arrays in
+CXL; frontier and distances in DRAM.
+
+| Backend | Kernel | `t_model` ms | Edges | Line fetches |
+|---|---|---|---|---|
+| dram | top-down | 0.346 | 53,629 | 0 |
+| cxl-direct | top-down | 1.198 | 53,629 | 4,302 |
+| cxl-direct | bottom-up | 1.336 | 48,277 | 4,407 |
+| cxl-direct | hybrid | 0.425 | 3,576 | 1,373 |
+
+Hybrid direction optimization cuts both edge work (15×) and CXL line fetches
+(3.1×) versus top-down. Full data and observations are in
 [docs/experiments/results.md](results.md).
 
 ## Timing model
@@ -167,7 +184,7 @@ latency, and errors.
 - WSL2 has no hardware PMU, so host cache behavior is measured with a software
   model, Cachegrind, or optional Orion `perf stat` on the DRAM baseline.
 
-## Reproducing M0 and M1
+## Reproducing M0, M1, and M2
 
 ```bash
 ./scripts/build_cxlmemsim.sh
@@ -176,4 +193,5 @@ latency, and errors.
 ./build/cxl_client_smoke
 ctest --test-dir build --output-on-failure
 ./scripts/run_stencil_calibration.sh   # writes results/raw/m1_stencil.csv
+./scripts/run_bfs_calibration.sh       # writes results/raw/m2_bfs.csv
 ```

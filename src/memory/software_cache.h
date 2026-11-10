@@ -38,6 +38,10 @@ public:
     // the updated backing store.
     void invalidate(std::uint64_t line_id);
 
+    // Drops every unit, leaving the cache cold. Used between measured runs so
+    // each run starts from the same cache state without rewriting the pool.
+    void clear();
+
     std::uint64_t hits() const { return hits_; }
     std::uint64_t misses() const { return misses_; }
     std::uint64_t evictions() const { return evictions_; }

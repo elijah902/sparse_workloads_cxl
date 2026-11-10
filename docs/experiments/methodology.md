@@ -91,6 +91,11 @@ Derived metrics:
 Reset counters after loading a dataset and before the measured kernel. Setup
 traffic must not be counted.
 
+For a read-only dataset such as the BFS CSR, load the pool once and call
+`clear_cache()` plus `reset_stats()` before each measured run. This makes every
+run start with a cold cache without paying setup writes again. For a dataset the
+kernel modifies (the stencil), reload the input instead.
+
 ## 6. Software cache
 
 - Fetch unit: 64 bytes for `cxl-direct`, `block_bytes` for `cxl-block`.

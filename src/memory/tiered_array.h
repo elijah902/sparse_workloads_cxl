@@ -85,6 +85,7 @@ public:
 
     const MemoryStats &stats() const { return stats_; }
     void reset_stats() { stats_.reset(); }
+    void clear_cache();
     void add_work_units(std::uint64_t units) { stats_.work_units += units; }
 
     Backend backend() const { return config_.backend; }
