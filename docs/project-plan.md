@@ -259,8 +259,7 @@ the code.
 | **M2** | BFS top-down, bottom-up, hybrid; `bfs.md`; sweeps | **Done 2026-11-09.** Correct on all test graphs; M2 table recorded; hybrid cuts CXL lines 3.1× vs top-down |
 | **M3** | SpMV CSR, SELL-C-σ, BCSR; `spmv.md`; sweeps | **Done 2026-11-09.** Correct on all matrices; CSR is best format (SELL/BCSR lose to padding); M3 table recorded |
 | **M4** | k-NN stretch; `knn.md`; sweeps | **Done 2026-11-09.** Brute force and tiled kernels implemented; all match the reference; M4 table recorded |
-| **M4** | k-NN stretch | Correct top-k; tiled vs brute-force comparison |
-| **M5** | Cross-algorithm analysis, survey, final report, reproduction | Report and repo reproduce every figure |
+| **M5** | Cross-algorithm analysis, survey, final report, reproduction | **Done 2026-11-09** for the survey and final report; final reproduction check remains |
 
 ## 10. Risks and mitigations
 
@@ -350,6 +349,10 @@ ctest --test-dir build --output-on-failure
   dataset with 4 queries; block mode (4 KB) reaches a 99.8% cache hit rate versus
   75% for per-vector direct-mode reads; tiling (32/64/256 vectors) did not change
   CXL traffic once the working set fit in the cache.
+- **2026-11-09 — M5 in progress.** Survey of memory-centric architectures and CXL /
+  disaggregated memory written (docs/report/survey.md); final report connecting the
+  survey to measurements written (docs/report/final-report.md). Cross-algorithm
+  analysis and final reproducibility check remain before the final report freeze.
 
 ## 13. References
 

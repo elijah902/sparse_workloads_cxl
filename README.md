@@ -15,13 +15,13 @@ stencil**.
 
 ## Status
 
-**M4 complete.** M0 built the CXLMemSim server and validated the TCP client. M1
-added the `TieredArray` memory abstraction (DRAM, CXL direct, CXL block), an
-LRU/direct-mapped software cache, `MemoryStats` counters, and the calibration 2D
-stencil. M2 added CSR graph builders and BFS with top-down, bottom-up, and
-direction-optimizing hybrid kernels. M3 added CSR, SELL-C-σ, and BCSR formats with
-SpMV kernels. M4 added the k-NN stretch (brute force vs tiled) with
-`knn_test`/`knn_bench`.
+**M5 in progress — final report and survey written.** M0 built the CXLMemSim server
+and validated the TCP client. M1 added the `TieredArray` memory abstraction (DRAM,
+CXL direct, CXL block), an LRU/direct-mapped software cache, `MemoryStats`
+counters, and the calibration 2D stencil. M2 added CSR graph builders and BFS with
+top-down, bottom-up, and direction-optimizing hybrid kernels. M3 added CSR, SELL-C-σ,
+and BCSR formats with SpMV kernels. M4 added the k-NN stretch (brute force vs tiled)
+with `knn_test`/`knn_bench`.
 
 All six CTest cases pass and the M1/M2/M3/M4 calibration data is recorded.
 
@@ -32,8 +32,10 @@ See [docs/experiments/results.md](docs/experiments/results.md) for the numbers,
 and [docs/experiments/platform.md](docs/experiments/platform.md) for platform
 details.
 
-Next: M5 — cross-algorithm analysis, CXL architecture survey, final report, and
-reproduction.
+Final report and survey: [docs/report/final-report.md](docs/report/final-report.md)
+and [docs/report/survey.md](docs/report/survey.md).
+
+Next: final reproducibility check and final report freeze (M5).
 
 ## Platform
 
