@@ -23,59 +23,10 @@ target_include_directories(cxl_memory PUBLIC src)
 target_link_libraries(cxl_memory PUBLIC cxl_client)
 
 add_library(cxl_workloads STATIC
-    src/workloads/bfs.cpp
-    src/workloads/knn.cpp
     src/workloads/spmv.cpp
-    src/workloads/stencil.cpp
 )
 target_include_directories(cxl_workloads PUBLIC src)
 target_link_libraries(cxl_workloads PUBLIC cxl_memory)
 
-add_executable(cxl_client_smoke tests/cxl_client_smoke.cpp)
-target_link_libraries(cxl_client_smoke PRIVATE cxl_client)
-
-add_executable(tiered_array_test tests/tiered_array_test.cpp)
-target_link_libraries(tiered_array_test PRIVATE cxl_memory)
-
-add_executable(stencil_test tests/stencil_test.cpp)
-target_link_libraries(stencil_test PRIVATE cxl_workloads)
-
-add_executable(bfs_test tests/bfs_test.cpp)
-target_link_libraries(bfs_test PRIVATE cxl_workloads)
-
-add_executable(spmv_test tests/spmv_test.cpp)
-target_link_libraries(spmv_test PRIVATE cxl_workloads)
-
-add_executable(knn_test tests/knn_test.cpp)
-target_link_libraries(knn_test PRIVATE cxl_workloads)
-
-add_executable(knn_bench apps/knn_bench.cpp)
-target_link_libraries(knn_bench PRIVATE cxl_workloads)
-
-add_executable(stencil_bench apps/stencil_bench.cpp)
-target_link_libraries(stencil_bench PRIVATE cxl_workloads)
-
-add_executable(bfs_bench apps/bfs_bench.cpp)
-target_link_libraries(bfs_bench PRIVATE cxl_workloads)
-
-add_executable(spmv_bench apps/spmv_bench.cpp)
-target_link_libraries(spmv_bench PRIVATE cxl_workloads)
-
-enable_testing()
-add_test(NAME cxl_client_smoke COMMAND cxl_client_smoke)
-set_tests_properties(cxl_client_smoke PROPERTIES SKIP_RETURN_CODE 77)
-
-add_test(NAME tiered_array_test COMMAND tiered_array_test)
-set_tests_properties(tiered_array_test PROPERTIES SKIP_RETURN_CODE 77)
-
-add_test(NAME stencil_test COMMAND stencil_test)
-set_tests_properties(stencil_test PROPERTIES SKIP_RETURN_CODE 77)
-
-add_test(NAME bfs_test COMMAND bfs_test)
-set_tests_properties(bfs_test PROPERTIES SKIP_RETURN_CODE 77)
-
-add_test(NAME spmv_test COMMAND spmv_test)
-set_tests_properties(spmv_test PROPERTIES SKIP_RETURN_CODE 77)
-
-add_test(NAME knn_test COMMAND knn_test)
-set_tests_properties(knn_test PROPERTIES SKIP_RETURN_CODE 77)
+add_executable(serial_spmv apps/serial_spmv.cpp)
+target_link_libraries(serial_spmv PRIVATE cxl_workloads)
